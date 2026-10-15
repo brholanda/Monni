@@ -4,6 +4,7 @@ import '../data/app_database.dart';
 import '../models/monthly_summary.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import 'categories_screen.dart';
 import 'expenses_screen.dart';
 import 'incomes_screen.dart';
 import 'summary_screen.dart';
@@ -87,6 +88,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     description: 'Saldo e gastos por categoria',
                     color: AppTheme.seed,
                     onTap: () => _open(const SummaryScreen()),
+                  ),
+                  const SizedBox(height: 14),
+                  _HomeButton(
+                    icon: Icons.category_rounded,
+                    label: 'Categorias',
+                    description: 'Criar, desativar e reativar',
+                    color: AppTheme.seed,
+                    onTap: () => _open(const CategoriesScreen()),
                   ),
                 ],
               ),

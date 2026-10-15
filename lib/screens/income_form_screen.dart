@@ -124,7 +124,7 @@ class _IncomeFormScreenState extends State<IncomeFormScreen> {
                     ],
                     decoration: const InputDecoration(
                       labelText: 'Valor',
-                      prefixText: '€ ',
+                      prefixText: '\$ ',
                     ),
                     validator: (value) => parseAmount(value ?? '') == null
                         ? 'Indique um valor válido maior que zero'

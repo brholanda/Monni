@@ -2,7 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
-import '../models/expense_category.dart';
+import '../data/category_store.dart';
 import '../models/monthly_summary.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';

@@ -5,6 +5,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 import '../models/expense.dart';
+import '../models/expense_category.dart';
 import '../models/income.dart';
 import '../models/monthly_summary.dart';
 
@@ -14,7 +15,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const _dbName = 'monni.db';
-  static const _dbVersion = 1;
+  static const _dbVersion = 3;
 
   Database? _db;
 
@@ -44,7 +45,12 @@ class AppDatabase {
     final path = kIsWeb
         ? _dbName
         : p.join(await getDatabasesPath(), _dbName);
-    return openDatabase(path, version: _dbVersion, onCreate: _onCreate);
+    return openDatabase(
+      path,
+      version: _dbVersion,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   Future<void> _onCreate(Database db, int version) async {
@@ -67,6 +73,146 @@ class AppDatabase {
     ''');
     await db.execute('CREATE INDEX idx_incomes_date ON incomes(date)');
     await db.execute('CREATE INDEX idx_expenses_date ON expenses(date)');
+    await _createCategories(db);
+    await _seedCategories(db);
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await _createCategories(db);
+      await _seedCategories(db);
+    }
+    if (oldVersion == 2) {
+      await db.execute(
+        'ALTER TABLE categories ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1',
+      );
+    }
+  }
+
+  Future<void> _createCategories(Database db) async {
+    await db.execute('''
+      CREATE TABLE categories (
+        name TEXT PRIMARY KEY COLLATE NOCASE,
+        icon_key TEXT NOT NULL,
+        color INTEGER NOT NULL,
+        position INTEGER NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1
+      )
+    ''');
+  }
+
+  Future<void> _seedCategories(Database db) async {
+    final batch = db.batch();
+    for (var i = 0; i < kDefaultCategories.length; i++) {
+      batch.insert(
+        'categories',
+        kDefaultCategories[i].toMap()..['position'] = i,
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+    }
+    // Preserva categorias que já existiam em gastos antes da tabela existir.
+    final orphans = await db.rawQuery(
+      'SELECT DISTINCT category FROM expenses',
+    );
+    var position = kDefaultCategories.length;
+    for (final row in orphans) {
+      final name = row['category'] as String;
+      batch.insert(
+        'categories',
+        ExpenseCategory(
+          name: name,
+          iconKey: kFallbackCategory.iconKey,
+          color: kCategoryPalette[position % kCategoryPalette.length],
+        ).toMap()
+          ..['position'] = position,
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+      position++;
+    }
+    await batch.commit(noResult: true);
+  }
+
+  // ------------------------------------------------------------- categories
+
+  Future<List<ExpenseCategory>> categories() async {
+    final db = await database;
+    final rows = await db.query('categories', orderBy: 'position, name');
+    return rows.map(ExpenseCategory.fromMap).toList();
+  }
+
+  /// Devolve `false` se já existir uma categoria com o mesmo nome.
+  Future<bool> insertCategory(ExpenseCategory category) async {
+    final db = await database;
+    final maxRow = await db.rawQuery(
+      'SELECT COALESCE(MAX(position), -1) AS max FROM categories',
+    );
+    final position = (maxRow.first['max'] as num).toInt() + 1;
+    final id = await db.insert(
+      'categories',
+      category.toMap()..['position'] = position,
+      conflictAlgorithm: ConflictAlgorithm.ignore,
+    );
+    return id != 0;
+  }
+
+  Future<int> setCategoryEnabled(String name, bool enabled) async {
+    final db = await database;
+    return db.update(
+      'categories',
+      {'enabled': enabled ? 1 : 0},
+      where: 'name = ?',
+      whereArgs: [name],
+    );
+  }
+
+  /// Atualiza uma categoria; se o nome mudar, os gastos associados acompanham.
+  /// Devolve `false` se o novo nome colidir com outra categoria.
+  Future<bool> updateCategory(
+    String previousName,
+    ExpenseCategory category,
+  ) async {
+    final db = await database;
+    if (previousName.toLowerCase() != category.name.toLowerCase()) {
+      final clash = await db.query(
+        'categories',
+        where: 'name = ?',
+        whereArgs: [category.name],
+        limit: 1,
+      );
+      if (clash.isNotEmpty) return false;
+    }
+    await db.transaction((txn) async {
+      await txn.update(
+        'categories',
+        {
+          'name': category.name,
+          'icon_key': category.iconKey,
+          'color': category.color.toARGB32(),
+        },
+        where: 'name = ?',
+        whereArgs: [previousName],
+      );
+      if (previousName != category.name) {
+        await txn.update(
+          'expenses',
+          {'category': category.name},
+          where: 'category = ?',
+          whereArgs: [previousName],
+        );
+      }
+    });
+    return true;
+  }
+
+  Future<Map<String, int>> expenseCountByCategory() async {
+    final db = await database;
+    final rows = await db.rawQuery(
+      'SELECT category, COUNT(*) AS total FROM expenses GROUP BY category',
+    );
+    return {
+      for (final row in rows)
+        row['category'] as String: (row['total'] as num).toInt(),
+    };
   }
 
   // ---------------------------------------------------------------- incomes

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../data/app_database.dart';
+import '../data/category_store.dart';
 import '../models/expense.dart';
-import '../models/expense_category.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../widgets/dialog_header.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/month_selector.dart';
 import 'expense_form_screen.dart';
@@ -166,16 +167,15 @@ class _ExpenseTile extends StatelessWidget {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Eliminar gasto?'),
+            title: DialogHeader(
+              title: 'Eliminar gasto?',
+              onClose: () => Navigator.pop(context, false),
+            ),
             content: Text(
               '${categoryByName(expense.category).name} · '
               '${formatCurrency(expense.amount)}',
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancelar'),
-              ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('Eliminar'),

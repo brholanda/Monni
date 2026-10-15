@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/app_database.dart';
+import '../data/category_store.dart';
 import '../models/expense.dart';
 import '../models/expense_category.dart';
 import '../theme/app_theme.dart';
@@ -21,6 +22,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
   late final TextEditingController _amountController;
   late final TextEditingController _descriptionController;
   late String _category;
+  late List<ExpenseCategory> _options;
   late DateTime _date;
   bool _saving = false;
 
@@ -33,7 +35,14 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     );
     _descriptionController =
         TextEditingController(text: expense?.description ?? '');
-    _category = expense?.category ?? kExpenseCategories.first.name;
+    _options = CategoryStore.instance.enabled;
+    if (expense != null &&
+        !_options.any((c) => c.name == expense.category)) {
+      // A categoria do gasto em edição pode estar desativada.
+      _options = [..._options, CategoryStore.instance.byName(expense.category)];
+    }
+    _category = expense?.category ??
+        (_options.isEmpty ? '' : _options.first.name);
     _date = expense?.date ?? DateTime.now();
   }
 
@@ -111,7 +120,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                     ],
                     decoration: const InputDecoration(
                       labelText: 'Valor',
-                      prefixText: '€ ',
+                      prefixText: '\$ ',
                     ),
                     validator: (value) => parseAmount(value ?? '') == null
                         ? 'Indique um valor válido maior que zero'
@@ -127,7 +136,7 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                     spacing: 8,
                     runSpacing: 8,
                     children: [
-                      for (final category in kExpenseCategories)
+                      for (final category in _options)
                         ChoiceChip(
                           selected: _category == category.name,
                           onSelected: (_) =>

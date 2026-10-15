@@ -3,7 +3,7 @@ import 'package:intl/intl.dart';
 const _locale = 'pt_PT';
 
 final NumberFormat _currency =
-    NumberFormat.currency(locale: _locale, symbol: '€', decimalDigits: 2);
+    NumberFormat.currency(locale: _locale, symbol: '\$', decimalDigits: 2);
 final DateFormat _shortDate = DateFormat('dd/MM/yyyy', _locale);
 final DateFormat _monthYear = DateFormat('MMMM yyyy', _locale);
 

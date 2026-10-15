@@ -4,6 +4,7 @@ import '../data/app_database.dart';
 import '../models/income.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../widgets/dialog_header.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/month_selector.dart';
 import 'income_form_screen.dart';
@@ -165,13 +166,12 @@ class _IncomeTile extends StatelessWidget {
     return await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: const Text('Eliminar entrada?'),
+            title: DialogHeader(
+              title: 'Eliminar entrada?',
+              onClose: () => Navigator.pop(context, false),
+            ),
             content: Text('"${income.title}" será removida.'),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancelar'),
-              ),
               FilledButton(
                 onPressed: () => Navigator.pop(context, true),
                 child: const Text('Eliminar'),
