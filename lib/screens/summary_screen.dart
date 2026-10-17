@@ -19,6 +19,7 @@ class SummaryScreen extends StatefulWidget {
 class _SummaryScreenState extends State<SummaryScreen> {
   DateTime _month = DateTime(DateTime.now().year, DateTime.now().month);
   MonthlySummary _summary = MonthlySummary.empty;
+  MonthlySummary _previousSummary = MonthlySummary.empty;
   bool _loading = true;
   String? _error;
 
@@ -34,16 +35,23 @@ class _SummaryScreenState extends State<SummaryScreen> {
       _error = null;
     });
     try {
-      final summary = await AppDatabase.instance.summaryForMonth(_month);
+      final summaries = await Future.wait([
+        AppDatabase.instance.summaryForMonth(_month),
+        AppDatabase.instance.summaryForMonth(
+          DateTime(_month.year, _month.month - 1),
+        ),
+      ]);
       if (!mounted) return;
       setState(() {
-        _summary = summary;
+        _summary = summaries[0];
+        _previousSummary = summaries[1];
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _summary = MonthlySummary.empty;
+        _previousSummary = MonthlySummary.empty;
         _error = '$e';
         _loading = false;
       });
@@ -111,6 +119,14 @@ class _SummaryScreenState extends State<SummaryScreen> {
                           _SectionCard(
                             title: 'Gastos por categoria',
                             child: _CategoryBreakdown(summary: _summary),
+                          ),
+                          const SizedBox(height: 20),
+                          _SectionCard(
+                            title: 'Comparação com mês anterior',
+                            child: _CategoryMonthComparison(
+                              current: _summary,
+                              previous: _previousSummary,
+                            ),
                           ),
                         ],
                       ],
@@ -414,6 +430,103 @@ class _CategoryBreakdown extends StatelessWidget {
             },
           ),
         ],
+      ],
+    );
+  }
+}
+
+class _CategoryMonthComparison extends StatelessWidget {
+  const _CategoryMonthComparison({
+    required this.current,
+    required this.previous,
+  });
+
+  final MonthlySummary current;
+  final MonthlySummary previous;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final categoryNames = {
+      ...current.byCategory.keys,
+      ...previous.byCategory.keys,
+    }.toList()
+      ..sort((first, second) {
+        final valueComparison = (current.byCategory[second] ?? 0).compareTo(
+          current.byCategory[first] ?? 0,
+        );
+        return valueComparison != 0 ? valueComparison : first.compareTo(second);
+      });
+
+    return Column(
+      children: [
+        for (var index = 0; index < categoryNames.length; index++) ...[
+          if (index > 0) const SizedBox(height: 18),
+          _CategoryMonthComparisonRow(
+            name: categoryNames[index],
+            currentValue: current.byCategory[categoryNames[index]] ?? 0,
+            previousValue: previous.byCategory[categoryNames[index]] ?? 0,
+            neutralColor: scheme.outline,
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _CategoryMonthComparisonRow extends StatelessWidget {
+  const _CategoryMonthComparisonRow({
+    required this.name,
+    required this.currentValue,
+    required this.previousValue,
+    required this.neutralColor,
+  });
+
+  final String name;
+  final double currentValue;
+  final double previousValue;
+  final Color neutralColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final category = categoryByName(name);
+    final difference = currentValue - previousValue;
+    final changeColor = difference > 0
+        ? AppTheme.expense
+        : difference < 0
+            ? AppTheme.income
+            : neutralColor;
+    final comparisonText = previousValue == 0
+        ? currentValue == 0
+            ? 'Sem alteração'
+            : 'Novo'
+        : '${difference >= 0 ? '+' : ''}${formatCurrency(difference)} '
+            '(${formatPercent(difference / previousValue * 100)})';
+
+    return Row(
+      children: [
+        Icon(category.icon, size: 18, color: category.color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            category.name,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              formatCurrency(currentValue),
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            Text(
+              comparisonText,
+              style: TextStyle(color: changeColor),
+            ),
+          ],
+        ),
       ],
     );
   }
