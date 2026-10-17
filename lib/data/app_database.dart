@@ -15,7 +15,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const _dbName = 'monni.db';
-  static const _dbVersion = 4;
+  static const _dbVersion = 5;
 
   Database? _db;
 
@@ -73,6 +73,7 @@ class AppDatabase {
     await db.execute('CREATE INDEX idx_expenses_date ON expenses(date)');
     await _createCategories(db);
     await _seedCategories(db);
+    await _createSettings(db);
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -92,6 +93,16 @@ class AppDatabase {
         whereArgs: ['Outros'],
       );
     }
+    if (oldVersion < 5) await _createSettings(db);
+  }
+
+  Future<void> _createSettings(Database db) async {
+    await db.execute('''
+      CREATE TABLE app_settings (
+        setting_key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      )
+    ''');
   }
 
   Future<void> _createCategories(Database db) async {
@@ -167,6 +178,30 @@ class AppDatabase {
       {'enabled': enabled ? 1 : 0},
       where: 'name = ?',
       whereArgs: [name],
+    );
+  }
+
+  // --------------------------------------------------------------- settings
+
+  Future<double?> fontScale() async {
+    final db = await database;
+    final rows = await db.query(
+      'app_settings',
+      columns: ['value'],
+      where: 'setting_key = ?',
+      whereArgs: ['font_scale'],
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return double.tryParse(rows.first['value'] as String);
+  }
+
+  Future<void> setFontScale(double fontScale) async {
+    final db = await database;
+    await db.insert(
+      'app_settings',
+      {'setting_key': 'font_scale', 'value': fontScale.toString()},
+      conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
 

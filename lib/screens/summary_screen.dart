@@ -162,13 +162,23 @@ class _TotalsCard extends StatelessWidget {
                   'Saldo final',
                   style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                 ),
-                Text(
-                  formatCurrency(summary.balance),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 22,
-                    color: positive ? AppTheme.income : AppTheme.expense,
-                  ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      formatCurrency(summary.balance),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
+                        color: positive ? AppTheme.income : AppTheme.expense,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      formatPercent(summary.balancePercentageOfIncome),
+                      style: TextStyle(color: scheme.outline),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -282,7 +292,8 @@ class _CategoryPieChartState extends State<_CategoryPieChart> {
               ),
               sections: [
                 for (var i = 0; i < entries.length; i++)
-                  _section(entries[i].key, entries[i].value, i == _touchedIndex),
+                  _section(
+                      entries[i].key, entries[i].value, i == _touchedIndex),
               ],
             ),
           ),
@@ -395,8 +406,7 @@ class _CategoryBreakdown extends StatelessWidget {
                       value: (percent / 100).clamp(0.0, 1.0),
                       minHeight: 8,
                       backgroundColor: category.color.withValues(alpha: 0.15),
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(category.color),
+                      valueColor: AlwaysStoppedAnimation<Color>(category.color),
                     ),
                   ),
                 ],

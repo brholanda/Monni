@@ -29,6 +29,11 @@ void main() {
       expect(summary.balance, 600);
     });
 
+    test('percentagem do saldo em relação às entradas', () {
+      expect(summary.balancePercentageOfIncome, 60);
+      expect(MonthlySummary.empty.balancePercentageOfIncome, 0);
+    });
+
     test('percentagem por categoria', () {
       expect(summary.percentageOf('Alimentação'), 75);
       expect(summary.percentageOf('Transportes'), 25);

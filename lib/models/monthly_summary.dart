@@ -14,6 +14,11 @@ class MonthlySummary {
 
   double get balance => totalIncome - totalExpense;
 
+  double get balancePercentageOfIncome {
+    if (totalIncome <= 0) return 0;
+    return balance / totalIncome * 100;
+  }
+
   double percentageOf(String category) {
     if (totalExpense <= 0) return 0;
     return (byCategory[category] ?? 0) / totalExpense * 100;
