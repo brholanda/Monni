@@ -29,11 +29,7 @@ class CategoryStore extends ChangeNotifier {
     for (final category in _categories) {
       if (category.name == name) return category;
     }
-    return ExpenseCategory(
-      name: name,
-      iconKey: kFallbackCategory.iconKey,
-      color: kFallbackCategory.color,
-    );
+    return fallbackCategoryFor(name);
   }
 
   bool exists(String name, {String? ignoring}) {

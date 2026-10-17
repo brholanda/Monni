@@ -89,11 +89,14 @@ const kCategoryPalette = <Color>[
   Color(0xFF7E57C2),
 ];
 
-const kFallbackCategory = ExpenseCategory(
-  name: 'Outros',
-  iconKey: 'category',
-  color: Color(0xFF9AA5B1),
-);
+const kFallbackCategoryIconKey = 'category';
+const kFallbackCategoryColor = Color(0xFF9AA5B1);
+
+ExpenseCategory fallbackCategoryFor(String name) => ExpenseCategory(
+      name: name,
+      iconKey: kFallbackCategoryIconKey,
+      color: kFallbackCategoryColor,
+    );
 
 const kDefaultCategories = <ExpenseCategory>[
   ExpenseCategory(
@@ -124,5 +127,4 @@ const kDefaultCategories = <ExpenseCategory>[
     iconKey: 'receipt',
     color: Color(0xFF6C7A93),
   ),
-  kFallbackCategory,
 ];

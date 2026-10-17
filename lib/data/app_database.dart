@@ -15,7 +15,7 @@ class AppDatabase {
   static final AppDatabase instance = AppDatabase._();
 
   static const _dbName = 'monni.db';
-  static const _dbVersion = 3;
+  static const _dbVersion = 4;
 
   Database? _db;
 
@@ -42,9 +42,7 @@ class AppDatabase {
 
   Future<Database> _open() async {
     _ensureFactory();
-    final path = kIsWeb
-        ? _dbName
-        : p.join(await getDatabasesPath(), _dbName);
+    final path = kIsWeb ? _dbName : p.join(await getDatabasesPath(), _dbName);
     return openDatabase(
       path,
       version: _dbVersion,
@@ -87,6 +85,13 @@ class AppDatabase {
         'ALTER TABLE categories ADD COLUMN enabled INTEGER NOT NULL DEFAULT 1',
       );
     }
+    if (oldVersion < 4) {
+      await db.delete(
+        'categories',
+        where: 'name = ?',
+        whereArgs: ['Outros'],
+      );
+    }
   }
 
   Future<void> _createCategories(Database db) async {
@@ -121,7 +126,7 @@ class AppDatabase {
         'categories',
         ExpenseCategory(
           name: name,
-          iconKey: kFallbackCategory.iconKey,
+          iconKey: kFallbackCategoryIconKey,
           color: kCategoryPalette[position % kCategoryPalette.length],
         ).toMap()
           ..['position'] = position,
@@ -136,7 +141,7 @@ class AppDatabase {
 
   Future<List<ExpenseCategory>> categories() async {
     final db = await database;
-    final rows = await db.query('categories', orderBy: 'position, name');
+    final rows = await db.query('categories', orderBy: 'name');
     return rows.map(ExpenseCategory.fromMap).toList();
   }
 
