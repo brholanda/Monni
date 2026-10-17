@@ -7,6 +7,7 @@ import '../models/expense.dart';
 import '../models/expense_category.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import '../widgets/category_form_sheet.dart';
 
 class ExpenseFormScreen extends StatefulWidget {
   const ExpenseFormScreen({super.key, this.expense});
@@ -36,13 +37,12 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
     _descriptionController =
         TextEditingController(text: expense?.description ?? '');
     _options = CategoryStore.instance.enabled;
-    if (expense != null &&
-        !_options.any((c) => c.name == expense.category)) {
+    if (expense != null && !_options.any((c) => c.name == expense.category)) {
       // A categoria do gasto em edição pode estar desativada.
       _options = [..._options, CategoryStore.instance.byName(expense.category)];
     }
-    _category = expense?.category ??
-        (_options.isEmpty ? '' : _options.first.name);
+    _category =
+        expense?.category ?? (_options.isEmpty ? '' : _options.first.name);
     _date = expense?.date ?? DateTime.now();
   }
 
@@ -62,6 +62,57 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
       locale: const Locale('pt', 'PT'),
     );
     if (picked != null) setState(() => _date = picked);
+  }
+
+  Future<void> _selectCategory() async {
+    final result = await showModalBottomSheet<Object>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _CategoryPickerSheet(
+        categories: _options,
+        selectedCategory: _category,
+      ),
+    );
+    if (!mounted || result == null) return;
+
+    if (result is ExpenseCategory) {
+      setState(() => _category = result.name);
+      return;
+    }
+    if (result == _CategoryPickerAction.newCategory) {
+      await _createCategory();
+    }
+  }
+
+  Future<void> _createCategory() async {
+    final store = CategoryStore.instance;
+    final category = await showModalBottomSheet<ExpenseCategory>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => CategoryFormSheet(
+        isDuplicate: store.exists,
+        suggestedColor:
+            kCategoryPalette[store.categories.length % kCategoryPalette.length],
+      ),
+    );
+    if (category == null) return;
+
+    final created = await AppDatabase.instance.insertCategory(category);
+    if (!mounted) return;
+    if (!created) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Já existe uma categoria com esse nome.')),
+      );
+      return;
+    }
+
+    await store.load();
+    if (mounted) {
+      setState(() {
+        _options = store.enabled;
+        _category = category.name;
+      });
+    }
   }
 
   Future<void> _save() async {
@@ -127,32 +178,26 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                         : null,
                   ),
                   const SizedBox(height: 20),
-                  const Text(
-                    'Categoria',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      for (final category in _options)
-                        ChoiceChip(
-                          selected: _category == category.name,
-                          onSelected: (_) =>
-                              setState(() => _category = category.name),
-                          avatar: Icon(
-                            category.icon,
-                            size: 18,
-                            color: category.color,
+                  InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: _selectCategory,
+                    child: InputDecorator(
+                      decoration: const InputDecoration(
+                        labelText: 'Categoria',
+                        suffixIcon: Icon(Icons.arrow_drop_down_rounded),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            CategoryStore.instance.byName(_category).icon,
+                            color:
+                                CategoryStore.instance.byName(_category).color,
                           ),
-                          label: Text(category.name),
-                          selectedColor: category.color.withValues(alpha: 0.18),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                    ],
+                          const SizedBox(width: 12),
+                          Expanded(child: Text(_category)),
+                        ],
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 20),
                   TextFormField(
@@ -189,6 +234,113 @@ class _ExpenseFormScreenState extends State<ExpenseFormScreen> {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+enum _CategoryPickerAction { newCategory }
+
+class _CategoryPickerSheet extends StatefulWidget {
+  const _CategoryPickerSheet({
+    required this.categories,
+    required this.selectedCategory,
+  });
+
+  final List<ExpenseCategory> categories;
+  final String selectedCategory;
+
+  @override
+  State<_CategoryPickerSheet> createState() => _CategoryPickerSheetState();
+}
+
+class _CategoryPickerSheetState extends State<_CategoryPickerSheet> {
+  final _searchController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedQuery = _query.trim().toLowerCase();
+    final categories = widget.categories
+        .where(
+            (category) => category.name.toLowerCase().contains(normalizedQuery))
+        .toList()
+      ..sort(
+        (first, second) =>
+            first.name.toLowerCase().compareTo(second.name.toLowerCase()),
+      );
+
+    return SafeArea(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 20,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Selecionar categoria',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: (value) => setState(() => _query = value),
+                decoration: const InputDecoration(
+                  hintText: 'Pesquisar categoria',
+                  prefixIcon: Icon(Icons.search_rounded),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                child: ListView(
+                  children: [
+                    for (final category in categories)
+                      ListTile(
+                        contentPadding:
+                            const EdgeInsets.symmetric(horizontal: 4),
+                        leading: Icon(category.icon, color: category.color),
+                        title: Text(category.name),
+                        trailing: category.name == widget.selectedCategory
+                            ? const Icon(Icons.check_rounded)
+                            : null,
+                        onTap: () => Navigator.pop(context, category),
+                      ),
+                    if (categories.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.only(top: 24),
+                        child: Center(
+                          child: Text('Nenhuma categoria encontrada.'),
+                        ),
+                      ),
+                    const Divider(),
+                    ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+                      leading: const Icon(Icons.add_rounded),
+                      title: const Text('Cadastrar nova categoria'),
+                      onTap: () => Navigator.pop(
+                        context,
+                        _CategoryPickerAction.newCategory,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
       ),
