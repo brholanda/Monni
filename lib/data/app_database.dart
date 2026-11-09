@@ -8,9 +8,12 @@ import '../models/expense.dart';
 import '../models/expense_category.dart';
 import '../models/income.dart';
 import '../models/monthly_summary.dart';
+import 'app_backup.dart';
 
 class AppDatabase {
   AppDatabase._();
+
+  AppDatabase.forTesting(Database database) : _db = database;
 
   static final AppDatabase instance = AppDatabase._();
 
@@ -18,6 +21,30 @@ class AppDatabase {
   static const _dbVersion = 5;
 
   Database? _db;
+
+  Future<AppBackup> exportBackup() async {
+    final db = await database;
+    return db.transaction((txn) async {
+      final tables = <String, List<Map<String, Object?>>>{};
+      for (final table in AppBackup.tableNames) {
+        tables[table] = await txn.query(table);
+      }
+      return AppBackup.fromTables(tables);
+    });
+  }
+
+  Future<void> restoreBackup(AppBackup backup) async {
+    final validated = AppBackup.decode(backup.encode());
+    final db = await database;
+    await db.transaction((txn) async {
+      for (final table in AppBackup.tableNames) {
+        await txn.delete(table);
+        for (final row in validated.tables[table]!) {
+          await txn.insert(table, row);
+        }
+      }
+    });
+  }
 
   Future<Database> get database async {
     return _db ??= await _open();

@@ -4,6 +4,7 @@ import '../data/app_database.dart';
 import '../models/monthly_summary.dart';
 import '../theme/app_theme.dart';
 import '../utils/formatters.dart';
+import 'backup_screen.dart';
 import 'categories_screen.dart';
 import 'expenses_screen.dart';
 import 'incomes_screen.dart';
@@ -57,6 +58,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: Theme.of(context).textTheme.headlineSmall,
                   ),
                 ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.backup_outlined),
+                title: const Text('Backup'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _open(const BackupScreen());
+                },
               ),
               ListTile(
                 leading: const Icon(Icons.settings_outlined),
