@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../data/accessibility_settings.dart';
+import '../data/app_lock_settings.dart';
 import '../theme/app_theme.dart';
+import 'app_lock_settings_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -9,7 +11,10 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: AccessibilitySettings.instance,
+      animation: Listenable.merge([
+        AccessibilitySettings.instance,
+        AppLockSettings.instance,
+      ]),
       builder: (context, _) {
         final settings = AccessibilitySettings.instance;
         final percentage = (settings.fontScale * 100).round();
@@ -85,6 +90,29 @@ class SettingsScreen extends StatelessWidget {
                               child: const Text('Repor tamanho padrão'),
                             ),
                           ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    Text(
+                      'Segurança',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    const SizedBox(height: 12),
+                    AppCard(
+                      child: ListTile(
+                        leading: const Icon(Icons.lock_outline_rounded),
+                        title: const Text('Bloqueio da aplicação'),
+                        subtitle: Text(
+                          AppLockSettings.instance.hasPin
+                              ? 'PIN ativado'
+                              : 'Desativado',
+                        ),
+                        trailing: const Icon(Icons.chevron_right_rounded),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const AppLockSettingsScreen(),
+                          ),
                         ),
                       ),
                     ),
